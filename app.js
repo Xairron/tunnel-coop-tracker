@@ -62,9 +62,11 @@ function updateAvatarPreview() {
     avatarPreviewImg.src = generateAvatarUrl(currentAvatarSeed);
 }
 
-document.getElementById('save-profile-btn').addEventListener('click', () => {
+document.getElementById('save-profile-btn').addEventListener('click', async () => {
     const pseudo = profilePseudoInput.value.trim();
     if (pseudo) {
+        const oldUser = currentUser;
+        
         currentUser = {
             pseudo: pseudo,
             avatarSeed: currentAvatarSeed,
@@ -73,6 +75,66 @@ document.getElementById('save-profile-btn').addEventListener('click', () => {
         localStorage.setItem('coop_user_profile', JSON.stringify(currentUser));
         updateProfileHeader();
         profileModal.classList.add('hidden');
+        
+        // Si l'utilisateur modifie son avatar, on met à jour tous ses anciens messages/votes
+        if (oldUser && oldUser.pseudo === pseudo) {
+            for (let game of games) {
+                let changed = false;
+                let updatedGame = { ...game };
+                
+                // Mettre à jour l'auteur unique (migration ancien format)
+                if (updatedGame.author && updatedGame.author.pseudo === pseudo && updatedGame.author.avatarSeed !== currentAvatarSeed) {
+                    updatedGame.author.avatar = currentUser.avatar;
+                    updatedGame.author.avatarSeed = currentUser.avatarSeed;
+                    changed = true;
+                }
+                
+                // Mettre à jour les auteurs (nouveau format tableau)
+                if (updatedGame.authors) {
+                    updatedGame.authors.forEach(a => {
+                        if (a.pseudo === pseudo && a.avatarSeed !== currentAvatarSeed) {
+                            a.avatar = currentUser.avatar;
+                            a.avatarSeed = currentUser.avatarSeed;
+                            changed = true;
+                        }
+                    });
+                }
+
+                // Mettre à jour les upvotes
+                if (updatedGame.upvotes) {
+                    updatedGame.upvotes.forEach(v => {
+                        if (v.pseudo === pseudo && v.avatarSeed !== currentAvatarSeed) {
+                            v.avatar = currentUser.avatar;
+                            v.avatarSeed = currentUser.avatarSeed;
+                            changed = true;
+                        }
+                    });
+                }
+                
+                // Mettre à jour les downvotes
+                if (updatedGame.downvotes) {
+                    updatedGame.downvotes.forEach(v => {
+                        if (v.pseudo === pseudo && v.avatarSeed !== currentAvatarSeed) {
+                            v.avatar = currentUser.avatar;
+                            v.avatarSeed = currentUser.avatarSeed;
+                            changed = true;
+                        }
+                    });
+                }
+                
+                if (changed) {
+                    const gameRef = doc(db, "games", game.id);
+                    try {
+                        await updateDoc(gameRef, {
+                            author: updatedGame.author || null,
+                            authors: updatedGame.authors || null,
+                            upvotes: updatedGame.upvotes || [],
+                            downvotes: updatedGame.downvotes || []
+                        });
+                    } catch(e) { console.error(e); }
+                }
+            }
+        }
     }
 });
 
@@ -208,15 +270,23 @@ function renderGames() {
         }
 
         const noteHtml = game.note ? `<div class="game-note">${game.note}</div>` : '';
-        const authorHtml = game.author ? `
-            <div class="game-author">
-                <img src="${game.author.avatar}" alt="Avatar">
-                <span>Proposé par ${game.author.pseudo}</span>
-            </div>
-        ` : '';
+        
+        // Rendu Multi-auteurs (ou rétro-compatibilité auteur unique)
+        const authorsList = game.authors || (game.author ? [game.author] : []);
+        let authorsHtml = '';
+        if (authorsList.length > 0) {
+            const authorNames = authorsList.map(a => a.pseudo).join(', ');
+            const firstAvatar = authorsList[0].avatar;
+            authorsHtml = `
+                <div class="game-author">
+                    <img src="${firstAvatar}" alt="Avatar">
+                    <span>Proposé par ${authorNames}</span>
+                </div>
+            `;
+        }
 
-        const isAuthor = currentUser && game.author && game.author.pseudo === currentUser.pseudo;
-        const editBtnHtml = isAuthor ? `<button class="game-actions" onclick="openEditModal('${game.id}', event)" title="Modifier">⚙️</button>` : '';
+        // Roue crantée désormais accessible à tous !
+        const editBtnHtml = `<button class="game-actions" onclick="openEditModal('${game.id}', event)" title="Modifier ce jeu">⚙️</button>`;
 
         const card = document.createElement('div');
         const isExpanded = expandedGameIds.has(game.id) ? 'expanded' : '';
@@ -224,7 +294,6 @@ function renderGames() {
         
         let nextSessionBadge = isNextSession ? `<div class="next-session-badge">🔥 Prochaine session</div>` : '';
 
-        // Assurer que les tableaux existent (Firebase Firestore renvoie parfois undefined si vide, bien qu'on les initie à [])
         const upvotesList = game.upvotes || [];
         const downvotesList = game.downvotes || [];
 
@@ -243,7 +312,7 @@ function renderGames() {
                     <h3>${game.name}</h3>
                     ${editBtnHtml}
                 </div>
-                ${authorHtml}
+                ${authorsHtml}
                 <div class="game-links">
                     ${steamLinkHtml}
                     <a href="${igLink}" target="_blank" class="store-link ig">🛒 Instant Gaming</a>
@@ -318,10 +387,25 @@ document.getElementById('cancel-edit-btn').addEventListener('click', () => {
 document.getElementById('save-edit-btn').addEventListener('click', async () => {
     if (!gameToEditId) return;
     
+    const game = games.find(g => g.id === gameToEditId);
+    if (!game) return;
+    
     const gameRef = doc(db, "games", gameToEditId);
+    
+    // Ajout du modificateur à la liste des auteurs s'il n'y est pas
+    let authorsList = game.authors || (game.author ? [game.author] : []);
+    if (currentUser) {
+        const isAlreadyAuthor = authorsList.some(a => a.pseudo === currentUser.pseudo);
+        if (!isAlreadyAuthor) {
+            authorsList.push(currentUser);
+        }
+    }
+    
     await updateDoc(gameRef, {
         date: editGameDateInput.value,
-        note: editGameNoteInput.value.trim()
+        note: editGameNoteInput.value.trim(),
+        authors: authorsList,
+        author: null // Suppression douce de l'ancienne clé author pour nettoyage
     });
     
     editGameModal.classList.add('hidden');
@@ -373,7 +457,7 @@ window.handleVote = async function(gameId, voteType, event) {
     
     localStorage.setItem('coop_user_votes', JSON.stringify(userVotes));
     
-    // Sauvegarde Firebase (renderGames() sera appelé auto par onSnapshot)
+    // Sauvegarde Firebase
     const gameRef = doc(db, "games", gameId);
     await updateDoc(gameRef, {
         upvotes: newUpvotes,
@@ -394,7 +478,6 @@ addGameForm.addEventListener('submit', async (e) => {
     const note = document.getElementById('game-note').value.trim();
     
     if (name && date) {
-        // Désactiver le bouton pendant l'envoi
         const submitBtn = addGameForm.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
         submitBtn.innerText = "Ajout...";
@@ -404,7 +487,7 @@ addGameForm.addEventListener('submit', async (e) => {
             date: date,
             steamAppID: currentSelectedSteamId,
             note: note,
-            author: currentUser,
+            authors: [currentUser], // Tableau d'auteurs
             upvotes: [],
             downvotes: []
         };
