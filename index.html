@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tunnel Coop Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div class="logo">
+                    <h1>Tunnel Coop Tracker</h1>
+                </div>
+                <div class="user-profile" id="user-profile-btn" title="Modifier mon profil">
+                    <!-- Injecté par JS (Avatar + Pseudo) -->
+                </div>
+            </div>
+            <p>Proposez vos jeux, votez et organisez vos prochaines sessions.</p>
+        </header>
+
+        <section class="add-game-section glass-panel">
+            <h2>Ajouter un jeu</h2>
+            <form id="add-game-form">
+                <div class="input-group">
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="game-name" placeholder="Rechercher un jeu (ex: Portal 2)..." required autocomplete="off">
+                        <ul id="autocomplete-list" class="autocomplete-list hidden"></ul>
+                    </div>
+                    <input type="date" id="game-date" required>
+                </div>
+                <div class="input-group" style="margin-top: 1rem;">
+                    <textarea id="game-note" rows="2" placeholder="Petite note ou argumentaire (optionnel)..."></textarea>
+                    <button type="submit" class="btn-primary">Ajouter à la liste</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="games-list-section">
+            <div id="games-container">
+                <!-- Les jeux seront injectés ici par le JS -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Modale d'Édition de Jeu -->
+    <div id="edit-game-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <h2>Modifier le jeu</h2>
+            <input type="date" id="edit-game-date" required class="modal-input" style="text-align:center;">
+            <textarea id="edit-game-note" rows="4" placeholder="Nouvelle note (optionnelle)..." class="modal-input" style="resize:vertical;font-family:inherit;text-align:left;font-size:1rem;"></textarea>
+            <div style="display:flex;gap:1rem;margin-top:0.5rem;">
+                <button id="delete-game-btn" class="btn-primary" style="flex:1;background:var(--downvote);">Supprimer</button>
+                <button id="save-edit-btn" class="btn-primary" style="flex:1;">Enregistrer</button>
+            </div>
+            <button id="cancel-edit-btn" style="background:transparent;border:none;color:var(--text-muted);cursor:pointer;">Annuler</button>
+        </div>
+    </div>
+
+    <!-- Modale de Profil -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <h2>Ton Profil</h2>
+            <p class="modal-subtitle">Choisis comment tes amis te verront !</p>
+            <div class="avatar-preview">
+                <img id="avatar-preview-img" src="" alt="Avatar">
+                <button type="button" id="random-avatar-btn" class="btn-icon" title="Changer d'avatar aléatoirement">🎲</button>
+            </div>
+            <input type="text" id="profile-pseudo-input" placeholder="Ton pseudo..." class="modal-input">
+            <button id="save-profile-btn" class="btn-primary">Enregistrer</button>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
