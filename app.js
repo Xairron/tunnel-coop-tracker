@@ -272,11 +272,22 @@ function renderGames() {
         const noteHtml = game.note ? `<div class="game-note">${game.note}</div>` : '';
         
         // Rendu Multi-auteurs (ou rétro-compatibilité auteur unique)
-        const authorsList = game.authors || (game.author ? [game.author] : []);
-        let authorsHtml = '';
+        let authorsList = game.authors || (game.author ? [game.author] : []);
+        let cleanAuthorsList = [];
         if (authorsList.length > 0) {
-            const authorNames = authorsList.map(a => a.pseudo).join(', ');
-            const firstAvatar = authorsList[0].avatar;
+            cleanAuthorsList.push(authorsList[0]);
+            for (let i = 1; i < authorsList.length; i++) {
+                if (game.upvotes && game.upvotes.some(v => v.pseudo === authorsList[i].pseudo)) {
+                    cleanAuthorsList.push(authorsList[i]);
+                }
+            }
+        }
+        
+        let authorsHtml = '';
+        if (cleanAuthorsList.length > 0) {
+            const authorNames = cleanAuthorsList.map(a => a.pseudo).join(', ');
+            // On affiche seulement l'avatar du premier auteur pour garder ça propre
+            const firstAvatar = cleanAuthorsList[0].avatar;
             authorsHtml = `
                 <div class="game-author">
                     <img src="${firstAvatar}" alt="Avatar">
@@ -404,21 +415,31 @@ document.getElementById('save-edit-btn').addEventListener('click', async () => {
     
     const gameRef = doc(db, "games", gameToEditId);
     
-    // Ajout du modificateur à la liste des auteurs s'il n'y est pas ET qu'il a voté "Pour"
+    // Nettoyage de sécurité : on garde le créateur, et on ne garde les autres que s'ils ont un upvote
     let authorsList = game.authors || (game.author ? [game.author] : []);
+    let cleanAuthorsList = [];
+    if (authorsList.length > 0) {
+        cleanAuthorsList.push(authorsList[0]);
+        for (let i = 1; i < authorsList.length; i++) {
+            if (game.upvotes && game.upvotes.some(v => v.pseudo === authorsList[i].pseudo)) {
+                cleanAuthorsList.push(authorsList[i]);
+            }
+        }
+    }
+    
     if (currentUser) {
-        const isAlreadyAuthor = authorsList.some(a => a.pseudo === currentUser.pseudo);
+        const isAlreadyAuthor = cleanAuthorsList.some(a => a.pseudo === currentUser.pseudo);
         const hasVotedUp = userVotes[gameToEditId] === 'up';
         
         if (!isAlreadyAuthor && hasVotedUp) {
-            authorsList.push(currentUser);
+            cleanAuthorsList.push(currentUser);
         }
     }
     
     await updateDoc(gameRef, {
         date: editGameDateInput.value,
         note: editGameNoteInput.value.trim(),
-        authors: authorsList,
+        authors: cleanAuthorsList,
         author: null // Suppression douce de l'ancienne clé author pour nettoyage
     });
     
@@ -471,11 +492,24 @@ window.handleVote = async function(gameId, voteType, event) {
     
     localStorage.setItem('coop_user_votes', JSON.stringify(userVotes));
     
+    // Nettoyage dynamique des auteurs si le vote change
+    let authorsList = game.authors || (game.author ? [game.author] : []);
+    let cleanAuthorsList = [];
+    if (authorsList.length > 0) {
+        cleanAuthorsList.push(authorsList[0]); // Le créateur d'origine reste toujours
+        for (let i = 1; i < authorsList.length; i++) {
+            if (newUpvotes.some(v => v.pseudo === authorsList[i].pseudo)) {
+                cleanAuthorsList.push(authorsList[i]);
+            }
+        }
+    }
+    
     // Sauvegarde Firebase
     const gameRef = doc(db, "games", gameId);
     await updateDoc(gameRef, {
         upvotes: newUpvotes,
-        downvotes: newDownvotes
+        downvotes: newDownvotes,
+        authors: cleanAuthorsList
     });
 }
 
