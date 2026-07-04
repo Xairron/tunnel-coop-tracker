@@ -62,7 +62,7 @@ textarea { resize: vertical; font-family: inherit; max-height: 250px; }
 
 /* Spécifique Modale d'Édition */
 #edit-game-modal .modal-content { max-width: 650px; }
-#edit-game-note { min-height: 120px; max-height: 70vh; resize: none; overflow-y: hidden; }
+#edit-game-note { min-height: 120px; max-height: 70vh; resize: none; overflow-y: auto; }
 /* Retour visuel Steam (Lueur Bleue) */
 input.linked-steam { color: #66c0f4; font-weight: 600; border-color: #66c0f4; box-shadow: 0 0 10px rgba(102, 192, 244, 0.4); }
 .btn-primary { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
