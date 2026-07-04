@@ -377,7 +377,19 @@ window.openEditModal = function(gameId, event) {
     editGameNoteInput.value = game.note || '';
     
     editGameModal.classList.remove('hidden');
+    
+    // Auto-resize de la zone de texte (avec un mini délai pour que le DOM soit prêt)
+    setTimeout(() => {
+        editGameNoteInput.style.height = 'auto';
+        editGameNoteInput.style.height = editGameNoteInput.scrollHeight + 'px';
+    }, 10);
 }
+
+// Auto-resize dynamique pendant la frappe
+editGameNoteInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = this.scrollHeight + 'px';
+});
 
 document.getElementById('cancel-edit-btn').addEventListener('click', () => {
     editGameModal.classList.add('hidden');
