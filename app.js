@@ -404,11 +404,13 @@ document.getElementById('save-edit-btn').addEventListener('click', async () => {
     
     const gameRef = doc(db, "games", gameToEditId);
     
-    // Ajout du modificateur à la liste des auteurs s'il n'y est pas
+    // Ajout du modificateur à la liste des auteurs s'il n'y est pas ET qu'il a voté "Pour"
     let authorsList = game.authors || (game.author ? [game.author] : []);
     if (currentUser) {
         const isAlreadyAuthor = authorsList.some(a => a.pseudo === currentUser.pseudo);
-        if (!isAlreadyAuthor) {
+        const hasVotedUp = userVotes[gameToEditId] === 'up';
+        
+        if (!isAlreadyAuthor && hasVotedUp) {
             authorsList.push(currentUser);
         }
     }
